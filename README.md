@@ -28,3 +28,7 @@ a. Create a CloudFormation template (T1) to represent all the infrastructure res
 b. The template (T1) should take the prediction endpoint (E1) as a stack parameter.
 
 
+
+![image](https://user-images.githubusercontent.com/85683392/146489073-43853369-97f5-4a71-973a-000b15b000fd.png)
+
+
