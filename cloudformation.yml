@@ -1,0 +1,116 @@
+Parameters:
+  EndpointName:
+    Type: String
+    Description: Please write the endpoint URL of your Sagemaker model.
+  S3BucketName:
+    Type: String
+    Default: as3cfbucket
+    Description: Please write the bucketname to store emails into it.
+  Domain:
+    Type: String
+    Default: mangocheesu.click
+    Description: Enter verified Domain.
+Resources:
+  SESRule:
+    Type: 'AWS::SES::ReceiptRule'
+    DependsOn:
+      - S3BucketPolicy
+    Properties:
+      Rule:
+        Name: ReceiptRule1
+        Enabled: true
+        Recipients:
+          - !Ref Domain
+        Actions:
+          - S3Action:
+              BucketName: !Ref S3Bucket
+      RuleSetName: ReceiptRuleSet1
+  SESRuleSet:
+    Type: 'AWS::SES::ReceiptRuleSet'
+    Properties:
+      RuleSetName: ReceiptRuleSet1
+  S3Bucket:
+    Type: 'AWS::S3::Bucket'
+    DependsOn: 
+      - LambdaFunction
+      - LambdaS3Permission 
+    Properties:
+      BucketName: !Ref S3BucketName
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: 's3:ObjectCreated:Put'
+            Function: !GetAtt LambdaFunction.Arn
+  S3BucketPolicy: 
+    Type: AWS::S3::BucketPolicy
+    Properties: 
+      Bucket: 
+        Ref: "S3Bucket"
+      PolicyDocument: 
+        Statement: 
+          - 
+            Action: 
+              - "s3:PutObject"
+            Effect: "Allow"
+            Resource: 
+              Fn::Join: 
+                - ""
+                - 
+                  - "arn:aws:s3:::"
+                  - 
+                    Ref: "S3Bucket"
+                  - "/*"
+            Principal: "*"
+  LambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    DependsOn:
+      - LambdaIamRole
+    Properties:
+      Handler: mail.lambda_handler
+      Role:  !GetAtt LambdaIamRole.Arn
+      Layers:
+        - arn:aws:lambda:us-east-1:668099181075:layer:AWSLambda-Python38-SciPy1x:4
+      Code:
+        S3Bucket: zipbalti
+        S3Key: mail1.zip
+      Runtime: python3.8
+      Environment:
+        Variables:
+          ENDPOINT_NAME: !Ref EndpointName
+      Timeout: 600
+      TracingConfig:
+        Mode: Active
+  LambdaS3Permission:
+    Type: AWS::Lambda::Permission
+    DependsOn: 
+      - LambdaFunction
+    Properties:
+      FunctionName: !GetAtt LambdaFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceAccount: !Ref 'AWS::AccountId'
+      SourceArn:
+        Fn::Join: 
+          - ""
+          - 
+            - "arn:aws:s3:::"
+            - 
+              Ref: "S3BucketName"
+  LambdaIamRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: lambda-role-email-spam
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        - "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+        - "arn:aws:iam::aws:policy/AmazonSESFullAccess"
+        - "arn:aws:iam::aws:policy/AmazonSageMakerFullAccess"
